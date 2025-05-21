@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-agent-2-backend-service
+  namespace: furniaizer
+spec:
+  selector:
+    app: ai-agent-2-backend
+  ports:
+  - port: 3004
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: ClusterIP
