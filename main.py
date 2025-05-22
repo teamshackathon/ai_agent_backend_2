@@ -3,12 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.v1.api import api_router
 import os
 
+if os.getenv("OPENAPI_URL"):
+    openapi_url = os.getenv("OPENAPI_URL")
+
 app = FastAPI(
     title="FURNIAIZER API",
-    version="1.0.0"
+    version="1.0.0",
+    openapi_url=openapi_url+"/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
 )
 
-origins = ["http://localhost:3000"]
+origins = []
 
 if os.getenv("ALLOWED_ORIGINS"):
     origins.extend(os.getenv("ALLOWED_ORIGINS").split(","))

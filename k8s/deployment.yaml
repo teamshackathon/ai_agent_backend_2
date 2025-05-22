@@ -28,7 +28,9 @@ spec:
         args: ["main:app", "--host", "0.0.0.0", "--port", "8000"]
         env:
         - name: ALLOWED_ORIGINS
-          value: "http://ai-agent-2-frontend-service:3001,http://ai-agent-2-frontend-service.furniaizer:3001,http://ai-agent-2-frontend-service.furniaizer.svc.cluster.local:3001"
+          value: "https://163.44.125.128"
+        - name: OPENAPI_URL
+          value: "/api-furniaizer"
         ports:
         - containerPort: 8000
           name: http
