@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  backend:
+    image: ghcr.io/teamshackathon/prod/ai-agent-2-backend:latest
+    container_name: ai-agent-2-backend
+    volumes:
+      # ホストのコードをコンテナにマウント
+      - ./:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:3000
+      # 開発環境用の環境変数
+      - APP_ENV=development
+      # その他必要な環境変数
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
