@@ -27,10 +27,30 @@ spec:
         command: ["uvicorn"]
         args: ["main:app", "--host", "0.0.0.0", "--port", "8000"]
         env:
+        - name: APP_ENV
+          value: "production"
         - name: ALLOWED_ORIGINS
           value: "https://163.44.125.128"
         - name: OPENAPI_URL
           value: "/api-furniaizer"
+        - name: FRONTEND_REDIRECT_URL
+          value: "https://163.44.125.128/furniaizer/auth/callback"
+        - name: GITHUB_CLIENT_ID
+          secretKeyRef:
+              name: furniaizer-github-client-secret
+              key: github-client-id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: furniaizer-github-client-secret
+              key: github-client-secret
+        - name: FIREBASE_CREDENTIALS_PATH
+          value: "/app/firebase-credentials.json"
+        volumeMounts:
+        # Firebase認証情報JSONファイルのマウント
+        - name: firebase-credentials
+          mountPath: "/app"
+          readOnly: true
         ports:
         - containerPort: 8000
           name: http
@@ -55,3 +75,11 @@ spec:
             scheme: HTTP
           initialDelaySeconds: 20
           periodSeconds: 10
+      volumes:
+      # Firebase認証情報のボリューム定義
+      - name: firebase-credentials
+        secret:
+          secretName: furniaizer-firebase-credentials
+          items:
+          - key: firebase-credentials.json
+            path: firebase-credentials.json

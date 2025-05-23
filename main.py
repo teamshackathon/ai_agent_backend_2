@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1.api import api_router
+from app.api.v1.api import api_router
 import os
 
 if os.getenv("OPENAPI_URL"):
@@ -12,7 +12,7 @@ app = FastAPI(
     openapi_url=openapi_url+"/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
 )
 
-origins = []
+origins = ["http://localhost:3000"]
 
 if os.getenv("ALLOWED_ORIGINS"):
     origins.extend(os.getenv("ALLOWED_ORIGINS").split(","))
