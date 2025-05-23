@@ -12,7 +12,7 @@ app = FastAPI(
     openapi_url=openapi_url+"/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
 )
 
-origins = ["http://localhost:3000"]
+origins = []
 
 if os.getenv("ALLOWED_ORIGINS"):
     origins.extend(os.getenv("ALLOWED_ORIGINS").split(","))

@@ -9,17 +9,19 @@ def initialize_firebase():
     """Firebase Adminを初期化する"""
     cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "./firebase-credentials.json")
     
-    is_prod = os.getenv("ENV") == "production"
+    is_prod = os.getenv("APP_ENV") == "production"
 
     # すでに初期化済みかチェック
     if not firebase_admin._apps:
         if is_prod:
+            print("Initializing Firebase Admin SDK in production mode")
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred)
         else:
+            print("Initializing Firebase Admin SDK in emulator mode")
             cred = credentials.Certificate(cred_path)
-            os.environ["FIRESTORE_EMULATOR_HOST"] = "localhost:8080"
-            os.environ["FIREBASE_AUTH_EMULATOR_HOST"] = "localhost:9099"
+            os.environ["FIRESTORE_EMULATOR_HOST"] = "host.docker.internal:8080"
+            os.environ["FIREBASE_AUTH_EMULATOR_HOST"] = "host.docker.internal:9099"
             firebase_admin.initialize_app(cred)
     
     return firebase_admin.get_app()
@@ -27,6 +29,7 @@ def initialize_firebase():
 # アプリケーション起動時に初期化
 firebase_app = initialize_firebase()
 db = firestore.client()
+print("Firebase Admin SDK initialized successfully")
 
 # Firestoreのユーティリティ関数
 def get_document(collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
