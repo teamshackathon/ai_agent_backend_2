@@ -13,3 +13,7 @@ seeds/*
 # 環境変数系
 .env
 response.json
+k8s/secrets.yaml
+
+# Firebase系
+firebase-credentials.json
