@@ -36,20 +36,21 @@ spec:
         - name: FRONTEND_REDIRECT_URL
           value: "https://163.44.125.128/furniaizer/auth/callback"
         - name: GITHUB_CLIENT_ID
-          secretKeyRef:
-              name: furniaizer-github-client-secret
-              key: github-client-id
+          valueFrom:
+            secretKeyRef:
+                name: furniaizer-github-client-secret
+                key: github-client-id
         - name: GITHUB_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: furniaizer-github-client-secret
               key: github-client-secret
         - name: FIREBASE_CREDENTIALS_PATH
-          value: "/app/firebase-credentials.json"
+          value: "/app/secrets/firebase-credentials.json"
         volumeMounts:
         # Firebase認証情報JSONファイルのマウント
         - name: firebase-credentials
-          mountPath: "/app"
+          mountPath: "/app/secrets"
           readOnly: true
         ports:
         - containerPort: 8000
