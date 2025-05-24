@@ -2,7 +2,9 @@ version: '3'
 
 services:
   backend:
-    image: ghcr.io/teamshackathon/prod/ai-agent-2-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: ai-agent-2-backend
     volumes:
       # ホストのコードをコンテナにマウント
