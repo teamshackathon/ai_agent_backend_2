@@ -24,7 +24,16 @@ ai_agent_backend_2/
 │   │   ├── __init__.py
 │   │   ├── config.py              # 設定読み込み
 │   │   ├── security.py            # セキュリティ関連
-│   │   └── firebase_utils.py      # Firebase関連ユーティリティ
+│   │   ├── firebase_utils.py      # Firebase関連ユーティリティ
+│   │   └── llm/                   # LLM関連コンポーネント
+│   │       ├── __init__.py
+│   │       ├── client/            # LLMクライアント
+│   │       │   ├── __init__.py
+│   │       │   └── gemini_client.py
+│   │       └── chain/             # LLMチェーン
+│   │           ├── __init__.py
+│   │           ├── base.py
+│   │           └── chatchain.py
 │   │
 │   ├── models/                    # データモデル
 │   │   ├── __init__.py
