@@ -26,7 +26,7 @@ class GeminiClient:
             max_tokens: Maximum tokens to generate
             api_key: Google API key (if not provided, will use GOOGLE_API_KEY env var)
         """
-        self.model_name = model_name or os.getenv("GEMINI_MODEL_NAME")
+        self.model_name = model_name or os.getenv("GOOGLE_CHAT_MODEL")
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
