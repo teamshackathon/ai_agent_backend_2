@@ -36,7 +36,14 @@ if [ ! -f ".env" ]; then
 fi
 
 # Load environment variables from .env file
-export $(grep -v '^#' .env | xargs)
+while IFS='=' read -r key value; do
+    # Skip empty lines and comments
+    if [[ -n "$key" && ! "$key" =~ ^[[:space:]]*# ]]; then
+        # Remove any trailing whitespace/newlines and quotes from value
+        value=$(echo "$value" | tr -d '\r\n' | sed 's/^"//; s/"$//')
+        export "$key"="$value"
+    fi
+done < .env
 
 if [ "$service" = "discord" ]; then
     # Set JSON file name
@@ -74,6 +81,19 @@ if [ "$service" = "discord" ]; then
     avatar_url=$(jq -r '.results[0].properties.assignee.people[0].avatar_url' "$JSON_FILE")
     notion_url=$(jq -r '.results[0].url' "$JSON_FILE")
     
+    # Handle null avatar_url
+    if [ "$avatar_url" = "null" ]; then
+        avatar_url=""
+    fi
+    
+    # Check if any results were found
+    results_count=$(jq -r '.results | length' "$JSON_FILE")
+    if [ "$results_count" -eq 0 ]; then
+        echo "[Error] No record found with ID: $number"
+        echo "Please check if the ID exists in the Notion database"
+        exit 1
+    fi
+    
     # Check if data extraction was successful
     if [ "$task_name" = "null" ] || [ "$assignee" = "null" ]; then
         echo "[Error] Failed to extract data from Notion response"
@@ -89,7 +109,8 @@ if [ "$service" = "discord" ]; then
     color=$((RANDOM * RANDOM % 16777216))
     
     # Prepare Discord embed JSON
-    discord_payload=$(cat <<EOF
+    if [ -n "$avatar_url" ]; then
+        discord_payload=$(cat <<EOF
 {
   "embeds": [
     {
@@ -108,17 +129,43 @@ if [ "$service" = "discord" ]; then
 }
 EOF
 )
+    else
+        discord_payload=$(cat <<EOF
+{
+  "embeds": [
+    {
+      "title": "【${message}】${task_name}",
+      "color": ${color},
+      "url": "${notion_url}",
+      "author": {
+        "name": "${assignee}"
+      },
+      "footer": {
+        "text": "${timestamp}"
+      }
+    }
+  ]
+}
+EOF
+)
+    fi
     
     # Send message to Discord
-    curl -H "Content-Type: application/json" \
+    discord_response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+         -H "Content-Type: application/json" \
          -X POST \
          -d "$discord_payload" \
-         "$DISCORD_WEBHOOK"
+         "$DISCORD_WEBHOOK")
     
-    if [ $? -eq 0 ]; then
+    # Extract HTTP status code
+    http_status=$(echo "$discord_response" | grep "HTTP_STATUS:" | cut -d: -f2)
+    response_body=$(echo "$discord_response" | sed '/HTTP_STATUS:/d')
+    
+    if [ "$http_status" = "204" ] || [ "$http_status" = "200" ]; then
         echo "[Info] Message sent to Discord successfully"
     else
-        echo "[Error] Failed to send message to Discord"
+        echo "[Error] Failed to send message to Discord (HTTP $http_status)"
+        echo "Response: $response_body"
         exit 1
     fi
     
