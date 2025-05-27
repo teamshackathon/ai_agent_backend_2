@@ -1,7 +1,13 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.v1.api import api_router
-import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if os.getenv("OPENAPI_URL"):
     openapi_url = os.getenv("OPENAPI_URL")
@@ -9,7 +15,7 @@ if os.getenv("OPENAPI_URL"):
 app = FastAPI(
     title="FURNIAIZER API",
     version="1.0.0",
-    openapi_url=openapi_url+"/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
+    openapi_url=openapi_url + "/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
 )
 
 origins = []
@@ -19,10 +25,10 @@ if os.getenv("ALLOWED_ORIGINS"):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,     # List of allowed origins
-    allow_credentials=True,    # Allow cookies
-    allow_methods=["*"],       # Allow all methods
-    allow_headers=["*"],       # Allow all headers
+    allow_origins=origins,  # List of allowed origins
+    allow_credentials=True,  # Allow cookies
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 app.include_router(api_router, prefix="/api/v1")
