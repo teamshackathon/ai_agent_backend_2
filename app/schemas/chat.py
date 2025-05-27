@@ -26,20 +26,3 @@ class ChatOutput(BaseOutput):
 
     role: str = Field(..., description="Role of the response")
     response: str = Field(..., description="Response content")
-
-
-# Internal schemas for chain processing
-class ChatChainInput(BaseInput):
-    """Internal input schema for chat chain"""
-
-    role: str = Field(..., description="Role of the current message")
-    response: str = Field(..., description="Current message content")
-    history: str = Field(..., description="Formatted chat history")
-    model_name: str = Field(..., description="Model deployment name")
-
-
-class ChatChainOutput(BaseOutput):
-    """Internal output schema for chat chain"""
-
-    role: str = Field(..., description="Role of the response")
-    response: str = Field(..., description="Response content")
