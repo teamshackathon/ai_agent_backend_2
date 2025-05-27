@@ -17,13 +17,23 @@ ai_agent_backend_2/
 │   │           ├── __init__.py
 │   │           ├── auth.py        # 認証エンドポイント
 │   │           ├── users.py       # ユーザー関連エンドポイント
+│   │           ├── chat.py        # チャットエンドポイント
 │   │           └── healthcheck.py # ヘルスチェックエンドポイント
 │   │
 │   ├── core/                      # コア機能・設定
 │   │   ├── __init__.py
 │   │   ├── config.py              # 設定読み込み
 │   │   ├── security.py            # セキュリティ関連
-│   │   └── firebase_utils.py      # Firebase関連ユーティリティ
+│   │   ├── firebase_utils.py      # Firebase関連ユーティリティ
+│   │   └── llm/                   # LLM関連コンポーネント
+│   │       ├── __init__.py
+│   │       ├── client/            # LLMクライアント
+│   │       │   ├── __init__.py
+│   │       │   └── gemini_client.py
+│   │       └── chain/             # LLMチェーン
+│   │           ├── __init__.py
+│   │           ├── base.py
+│   │           └── chatchain.py
 │   │
 │   ├── models/                    # データモデル
 │   │   ├── __init__.py
@@ -32,12 +42,23 @@ ai_agent_backend_2/
 │   ├── schemas/                   # Pydanticスキーマ
 │   │   ├── __init__.py
 │   │   ├── auth.py                # 認証関連スキーマ
+│   │   ├── chat.py                # チャット関連スキーマ
+│   │   ├── base.py                # ベーススキーマ
 │   │   └── user.py                # ユーザー関連スキーマ
 │   │
 │   └── services/                  # ビジネスロジック
 │       ├── __init__.py
 │       ├── auth_service.py        # 認証サービス
-│       └── user_service.py        # ユーザーサービス
+│       ├── chat_service.py        # チャットサービス
+│       ├── user_service.py        # ユーザーサービス
+│       ├── chain/                 # LangChain関連
+│       │   ├── __init__.py
+│       │   ├── base.py            # ベースチェーン
+│       │   ├── dependency.py      # チェーン依存関係
+│       │   └── pydantic_chain.py  # Pydanticチェーン
+│       └── llm/                   # LLM関連
+│           ├── __init__.py
+│           └── gemini_client.py   # Geminiクライアント
 │
 ├── tests/                         # テスト
 │   ├── __init__.py
@@ -71,34 +92,87 @@ ai_agent_backend_2/
 バックエンドAPI統合ガイド: Firebase認証とGitHub OAuth
 フロントエンド開発者向けに、バックエンドAPIとの連携方法をまとめました。
 
-1. 開発環境セットアップ
+## 1. 開発環境セットアップ
 バックエンドサーバーは以下の設定で動作しています:
-URL: http://localhost:8000
-API Base Path: /api/v1
+- URL: http://localhost:8000
+- API Base Path: /api/v1
 
-2. 認証フロー
-GitHub OAuth認証
-認証開始: ユーザーを以下のURLにリダイレクト
-GET /api/v1/auth/github/login
+### 環境変数設定
+```bash
+# Google API Key for Gemini
+GOOGLE_API_KEY=your_google_api_key_here
 
-コールバック処理:
+# Other environment variables
+OPENAPI_URL=
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+```
 
-GitHubからhttp://localhost:8000/api/v1/auth/github/callbackにリダイレクト
-バックエンドはユーザー情報を取得して処理
-最終的にhttp://localhost:3000/auth/callback?token={custom_token}にリダイレクト
-フロントエンド処理:
+## 2. 認証フロー
+### GitHub OAuth認証
+1. **認証開始**: ユーザーを以下のURLにリダイレクト
+   ```
+   GET /api/v1/auth/github/login
+   ```
 
-URLからカスタムトークン(token)を取得
-Firebase Authentication SDKを使用してサインイン:
+2. **コールバック処理**:
+   - GitHubから`http://localhost:8000/api/v1/auth/github/callback`にリダイレクト
+   - バックエンドはユーザー情報を取得して処理
+   - 最終的に`http://localhost:3000/auth/callback?token={custom_token}`にリダイレクト
 
-Firebase認証の検証
-トークン検証:
-POST /api/v1/auth/verify
+3. **フロントエンド処理**:
+   - URLからカスタムトークン(token)を取得
+   - Firebase Authentication SDKを使用してサインイン
+
+### Firebase認証の検証
+1. **トークン検証**:
+   ```
+   POST /api/v1/auth/verify
+   Content-Type: application/json
+   {
+     "id_token": "Firebase IdToken"
+   }
+   ```
+
+2. **ユーザー情報取得**:
+   ```
+   GET /api/v1/auth/me
+   Authorization: Bearer {Firebase IdToken}
+   ```
+
+## 3. チャット機能
+### チャットエンドポイント
+Gemini LLMを使用したチャット機能を提供します。
+
+```
+POST /api/v1/chat
 Content-Type: application/json
 {
-  "id_token": "Firebase IdToken"
+  "role": "user",
+  "response": "Hello, how are you?",
+  "history": [
+    {
+      "role": "user",
+      "content": "Previous message"
+    },
+    {
+      "role": "assistant", 
+      "content": "Previous response"
+    }
+  ],
+  "model_name": "gemini-pro"  // Optional
 }
+```
 
-ユーザー情報取得:
-GET /api/v1/auth/me
-Authorization: Bearer {Firebase IdToken}
+**レスポンス**:
+```json
+{
+  "role": "assistant",
+  "response": "I'm doing well, thank you for asking! How can I help you today?"
+}
+```
+
+### チャット機能の特徴
+- **LangChain統合**: PydanticChainを使用した構造化された出力
+- **リトライ機能**: レート制限エラー時の自動リトライ
+- **履歴管理**: 会話履歴を考慮した応答生成
+- **エラーハンドリング**: 適切なエラーレスポンス
