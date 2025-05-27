@@ -17,3 +17,6 @@ k8s/secrets.yaml
 
 # Firebase系
 firebase-credentials.json
+
+# venv
+.venv/*

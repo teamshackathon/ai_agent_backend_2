@@ -45,6 +45,13 @@ spec:
             secretKeyRef:
               name: furniaizer-github-client-secret
               key: github-client-secret
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: furniaizer-github-client-secret
+              key: google-api-key
+        - name: GOOGLE_CHAT_MODEL
+          value: "gemini-2.0-flash"
         - name: FIREBASE_CREDENTIALS_PATH
           value: "/app/secrets/firebase-credentials.json"
         volumeMounts:
