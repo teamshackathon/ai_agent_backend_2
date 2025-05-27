@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.llm.client.gemini_client import GeminiClient
 from app.schemas.chat import ChatInput, ChatOutput
 from app.services.chat_service import ChatService
+from app.api.dependencies.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def get_chat_service(gemini_client: GeminiClient = Depends(get_gemini_client)) -
 
 
 @router.post("/chat", response_model=ChatOutput)
-async def chat_endpoint(chat_input: ChatInput, chat_service: ChatService = Depends(get_chat_service)) -> ChatOutput:
+async def chat_endpoint(chat_input: ChatInput, chat_service: ChatService = Depends(get_chat_service), current_user = Depends(get_current_user)) -> ChatOutput:
     """Chat endpoint using Gemini LLM
 
     Args:
