@@ -1,15 +1,19 @@
 import os
-import jwt
+from typing import Any, Dict, List, Optional
+
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
-from typing import Dict, Any, Optional, List
+import jwt
+from firebase_admin import auth, credentials, firestore
+
+from app.core.config import settings
+
 
 # Firebaseプロジェクト初期化
 def initialize_firebase():
     """Firebase Adminを初期化する"""
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "./firebase-credentials.json")
+    cred_path = settings.FIREBASE_CREDENTIALS_PATH
     
-    is_prod = os.getenv("APP_ENV") == "production"
+    is_prod = settings.ENVIRONMENT == "production"
 
     # すでに初期化済みかチェック
     if not firebase_admin._apps:
@@ -72,7 +76,7 @@ def delete_document(collection: str, doc_id: str) -> None:
 # Firebase Authentication関連
 def verify_id_token(id_token: str) -> Dict[str, Any]:
     """Firebase IDトークンを検証しデコードする"""
-    is_production = os.getenv("APP_ENV") == "production"
+    is_production = settings.ENVIRONMENT == "production"
     
     try:
         if is_production:

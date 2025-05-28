@@ -1,34 +1,27 @@
+from typing import Any, Dict
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
-from dotenv import load_dotenv
-import httpx
-import os
 from firebase_admin import firestore
-from typing import Dict, Any
-from app.core.firebase_utils import verify_id_token, get_user, create_custom_token, create_user_with_email_password, update_firebase_user
+
 from app.api.dependencies.auth import get_current_user
+from app.core.config import settings
+from app.core.firebase_utils import create_custom_token, create_user_with_email_password, get_user, update_firebase_user, verify_id_token
+from app.schemas.auth import Token, UserCreate, UserResponse
 from app.services.user_service import UserService
-from app.schemas.auth import Token, UserResponse, UserCreate
 
 router = APIRouter()
-
-# dotenvで環境変数を読み込む
-load_dotenv()
-
-# 環境変数から設定を読み込む
-GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
-GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
-FRONTEND_REDIRECT_URL = os.getenv("FRONTEND_REDIRECT_URL")
 
 @router.get("/github/login")
 async def login_github():
     """GitHubログイン用のリダイレクトURL"""
-    if not GITHUB_CLIENT_ID:
+    if not settings.GITHUB_CLIENT_ID:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="GitHub OAuth not configured"
         )
-    github_auth_url = f"https://github.com/login/oauth/authorize?client_id={GITHUB_CLIENT_ID}&scope=user:email"
+    github_auth_url = f"https://github.com/login/oauth/authorize?client_id={settings.GITHUB_CLIENT_ID}&scope=user:email"
     return RedirectResponse(url=github_auth_url)
 
 @router.get("/github/callback")
@@ -37,8 +30,8 @@ async def github_callback(code: str):
     # GitHubからアクセストークンを取得
     token_url = "https://github.com/login/oauth/access_token"
     payload = {
-        "client_id": GITHUB_CLIENT_ID,
-        "client_secret": GITHUB_CLIENT_SECRET,
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "client_secret": settings.GITHUB_CLIENT_SECRET,
         "code": code
     }
     headers = {"Accept": "application/json"}
@@ -127,16 +120,16 @@ async def github_callback(code: str):
                     UserService.update_user(firebase_uid, user_profile)
                 
                 # フロントエンドにリダイレクト（カスタムトークンを含む）
-                redirect_url = f"{FRONTEND_REDIRECT_URL}?token={custom_token}"
+                redirect_url = f"{settings.FRONTEND_REDIRECT_URL}?token={custom_token}"
                 
                 return RedirectResponse(url=redirect_url)
             except Exception as e:
                 # エラーが発生した場合、必要最低限の情報をフロントエンドに渡す
-                error_redirect = f"{FRONTEND_REDIRECT_URL}?error=firebase_auth_error&message={str(e)}"
+                error_redirect = f"{settings.FRONTEND_REDIRECT_URL}?error=firebase_auth_error&message={str(e)}"
                 return RedirectResponse(url=error_redirect)
     except Exception as e:
         print(f"Exception in GitHub callback: {str(e)}")
-        error_redirect = f"{FRONTEND_REDIRECT_URL}?error=server_error&message={str(e)}"
+        error_redirect = f"{settings.FRONTEND_REDIRECT_URL}?error=server_error&message={str(e)}"
         return RedirectResponse(url=error_redirect, status_code=302)
 
 @router.post("/verify", response_model=Dict[str, Any])

@@ -14,6 +14,6 @@ services:
     environment:
       - ALLOWED_ORIGINS=http://localhost:3000
       # 開発環境用の環境変数
-      - APP_ENV=development
+      - ENVIRONMENT=development
       # その他必要な環境変数
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

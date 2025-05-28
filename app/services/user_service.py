@@ -1,11 +1,6 @@
-from typing import Dict, Any, Optional, List
-from app.core.firebase_utils import (
-    get_document, 
-    get_documents,
-    add_document, 
-    update_document, 
-    delete_document
-)
+from typing import Any, Dict, List, Optional
+
+from app.core.firebase_utils import add_document, delete_document, get_document, get_documents, update_document
 
 USERS_COLLECTION = "users"
 
