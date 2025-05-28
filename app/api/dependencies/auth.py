@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.core.firebase_utils import verify_id_token, get_user
+
+from app.core.firebase_utils import get_user, verify_id_token
 
 # OAuth2のトークンスキーマを設定
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")

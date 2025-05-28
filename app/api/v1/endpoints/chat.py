@@ -2,10 +2,10 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.api.dependencies.auth import get_current_user
 from app.core.llm.client.gemini_client import GeminiClient
 from app.schemas.chat import ChatInput, ChatOutput
 from app.services.chat_service import ChatService
-from app.api.dependencies.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 

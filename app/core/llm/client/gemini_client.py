@@ -1,9 +1,10 @@
 import logging
-import os
 from typing import Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,10 @@ class GeminiClient:
             max_tokens: Maximum tokens to generate
             api_key: Google API key (if not provided, will use GOOGLE_API_KEY env var)
         """
-        self.model_name = model_name or os.getenv("GOOGLE_CHAT_MODEL")
+        self.model_name = settings.GOOGLE_CHAT_MODEL
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
+        self.api_key = settings.GOOGLE_API_KEY
 
         if not self.api_key:
             raise ValueError(

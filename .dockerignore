@@ -4,4 +4,7 @@ tools
 .gitignore
 docker-compose.yaml
 pull_request.bat
+pull_request.sh
 send_discord.bat
+send_discord.sh
+pyproject.toml

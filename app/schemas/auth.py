@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, EmailStr, Field
+
 
 class Token(BaseModel):
     """認証トークンスキーマ"""
