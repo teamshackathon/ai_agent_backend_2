@@ -1,27 +1,20 @@
-import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-if os.getenv("OPENAPI_URL"):
-    openapi_url = os.getenv("OPENAPI_URL")
+from app.core.config import settings
 
 app = FastAPI(
     title="FURNIAIZER API",
     version="1.0.0",
-    openapi_url=openapi_url + "/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
+    openapi_url=settings.OPENAPI_URL + "/openapi.json"
 )
 
 origins = []
 
-if os.getenv("ALLOWED_ORIGINS"):
-    origins.extend(os.getenv("ALLOWED_ORIGINS").split(","))
+if settings.ALLOWED_ORIGINS:
+    origins.extend(settings.ALLOWED_ORIGINS.split(","))
 
 app.add_middleware(
     CORSMiddleware,

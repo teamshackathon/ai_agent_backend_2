@@ -8,6 +8,7 @@ httpx>=0.28.1
 pydantic>=2.11.4
 python-dotenv
 pydantic[email]
+pydantic-settings
 langchain>=0.1.0
 langchain-google-genai>=1.0.0
 langchain-core>=0.1.0
