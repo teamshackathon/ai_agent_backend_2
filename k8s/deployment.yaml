@@ -177,11 +177,6 @@ spec:
             secretKeyRef:
               name: furniaizer-github-client-secret
               key: STORAGE_BUCKET_NAME
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: furniaizer-github-client-secret
-              key: SECRET_KEY
         ports:
         - containerPort: 8000
           name: http
@@ -213,7 +208,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
-  namespace: bae-recipe
+  namespace: furniaizer
 spec:
   replicas: 1
   selector:
