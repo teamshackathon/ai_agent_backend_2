@@ -63,6 +63,8 @@ jobs:
             ghcr.io/${{ env.ORG_NAME_LOWER }}/prod/ai-agent-2-backend:latest
             ghcr.io/${{ env.ORG_NAME_LOWER }}/prod/ai-agent-2-backend:${{ env.TAG_NAME }}
           platforms: linux/amd64
+          build-args: |
+            VERSION=${{ env.TAG_NAME }}
           
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

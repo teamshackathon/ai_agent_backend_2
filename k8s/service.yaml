@@ -18,7 +18,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-service
-  namespace: bae-recipe
+  namespace: furniaizer
 spec:
   selector:
     app: redis
