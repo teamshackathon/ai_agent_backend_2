@@ -1,231 +1,262 @@
-from typing import Any, Dict
+import secrets
+from datetime import timedelta
+from typing import Any
+from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
-from firebase_admin import firestore
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
-from app.api.dependencies.auth import get_current_user
+from app.api import deps
+from app.core import security
 from app.core.config import settings
-from app.core.firebase_utils import create_custom_token, create_user_with_email_password, get_user, update_firebase_user, verify_id_token
-from app.schemas.auth import Token, UserCreate, UserResponse
+from app.core.security import generate_state_token
+from app.schemas import user as schemas
 from app.services.user_service import UserService
 
 router = APIRouter()
 
-@router.get("/github/login")
-async def login_github():
-    """GitHubログイン用のリダイレクトURL"""
-    if not settings.GITHUB_CLIENT_ID:
+def get_user_service(db: Session = Depends(deps.get_db)) -> UserService:
+    """
+    ユーザーサービスの依存関係
+    """
+    return UserService(db=db)
+
+@router.post("/login/password", response_model=schemas.Token)
+def login_password(
+    user_service: UserService = Depends(get_user_service), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    """
+    メールアドレスとパスワードによる認証
+    
+    - **username**: メールアドレス
+    - **password**: パスワード
+    """
+    user = user_service.authenticate(
+        email=form_data.username, password=form_data.password
+    )
+    if not user:
+        raise HTTPException(status_code=400, detail="メールアドレスまたはパスワードが正しくありません")
+    elif not user.is_active:
+        raise HTTPException(status_code=400, detail="ユーザーは無効です")
+    
+    # ログイン時間を更新
+    user_service.update_login_time(user=user)
+    
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return {
+        "access_token": security.create_access_token(
+            user.id, expires_delta=access_token_expires
+        ),
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒単位
+    }
+
+@router.post("/register", response_model=schemas.User)
+def register_new_user(
+    *,
+    user_service: UserService = Depends(get_user_service),
+    user_in: schemas.UserCreate,
+) -> Any:
+    """
+    新しいユーザーを登録
+    """
+    user = user_service.get_by_email(email=user_in.email)
+    if user:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GitHub OAuth not configured"
+            status_code=400,
+            detail="このメールアドレスはすでに登録されています。",
         )
-    github_auth_url = f"https://github.com/login/oauth/authorize?client_id={settings.GITHUB_CLIENT_ID}&scope=user:email"
-    return RedirectResponse(url=github_auth_url)
+    user = user_service.create(obj_in=user_in)
+    return user
+
+@router.get("/github/login")
+async def login_github(request: Request):
+    """
+    GitHub OAuth認証のリダイレクトURLを生成
+    """
+    # セッションIDを取得またはCookieから生成
+    session_id = request.cookies.get("session_id")
+    print(f"Session ID: {session_id}")
+    if not session_id:
+        session_id = secrets.token_urlsafe(16)
+    
+    # stateトークンを生成
+    state = generate_state_token(session_id)
+    
+    # GitHub認証URL生成
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "scope": "user:email",
+        "state": state,
+    }
+    github_auth_url = f"https://github.com/login/oauth/authorize?{urlencode(params)}"
+    
+    # セッションIDをCookieに設定してリダイレクト
+    response = RedirectResponse(url=github_auth_url)
+    response.set_cookie(key="session_id", value=session_id, httponly=True, samesite="none")
+    return response
 
 @router.get("/github/callback")
-async def github_callback(code: str):
-    """GitHub OAuth2コールバック処理"""
+async def github_callback(
+    request: Request,
+    code: str,
+    state: str,
+    user_service: UserService = Depends(get_user_service),
+):
+    """
+    GitHub OAuth認証のコールバック処理
+    
+    GitHubから返されたコードを使用してアクセストークンを取得し、
+    ユーザー情報を取得してデータベースに保存します。
+    認証成功後はJWTトークンを生成して返します。
+    """
+    # 認証コードの検証
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="認証コードが見つかりません"
+        )
+    
+    # セッションIDを取得
+    # if settings.ENVIRONMENT == "production":
+    #     session_id = request.cookies.get("session_id")
+    #     print(f"Session ID from callback: {session_id}")
+    #     if not session_id:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail="セッションIDが見つかりません"
+    #         )
+        
+    #     # stateトークンを検証
+    #     if not verify_state_token(session_id, state):
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail="不正なリクエスト - stateトークンが無効です"
+    #         )
+    
     # GitHubからアクセストークンを取得
     token_url = "https://github.com/login/oauth/access_token"
-    payload = {
+    
+    token_payload = {
         "client_id": settings.GITHUB_CLIENT_ID,
         "client_secret": settings.GITHUB_CLIENT_SECRET,
-        "code": code
+        "code": code,
+        "redirect_uri": settings.GITHUB_REDIRECT_URI,
     }
-    headers = {"Accept": "application/json"}
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(token_url, json=payload, headers=headers)
-            github_token_data = response.json()
-            if "error" in github_token_data:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"GitHub OAuth error: {github_token_data['error']}"
-                )
-                
-            github_token = github_token_data["access_token"]
-            
-            # GitHubユーザー情報を取得
-            user_response = await client.get(
-                "https://api.github.com/user",
-                headers={
-                    "Authorization": f"token {github_token}",
-                    "Accept": "application/json"
-                }
+    
+    headers = {
+        "Accept": "application/json"
+    }
+    
+    async with httpx.AsyncClient() as client:
+        # アクセストークン取得
+        token_response = await client.post(token_url, json=token_payload, headers=headers)
+        
+        if token_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GitHubからのトークン取得に失敗しました"
             )
-            user_data = user_response.json()
+        
+        token_data = token_response.json()
+        access_token = token_data.get("access_token")
+        
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GitHubからのアクセストークン取得に失敗しました"
+            )
+        
+        # GitHubからユーザー情報を取得
+        user_api_url = "https://api.github.com/user"
+        user_email_url = "https://api.github.com/user/emails"
+        
+        auth_headers = {
+            "Authorization": f"token {access_token}",
+            "Accept": "application/json"
+        }
+        
+        # ユーザープロファイルを取得
+        user_response = await client.get(user_api_url, headers=auth_headers)
+        
+        if user_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GitHubからのユーザー情報取得に失敗しました"
+            )
+        
+        github_user = user_response.json()
+        
+        # ユーザーのメールアドレスを取得
+        email_response = await client.get(user_email_url, headers=auth_headers)
+        
+        if email_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GitHubからのメールアドレス取得に失敗しました"
+            )
+        
+        emails = email_response.json()
+        primary_email = next((email.get("email") for email in emails if email.get("primary")), None)
+        
+        if not primary_email:
+            primary_email = emails[0].get("email") if emails else None
+        
+        if not primary_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GitHubからのメールアドレス取得に失敗しました"
+            )
+        
+        # データベースにユーザーがすでに存在するか確認
+        user = user_service.get_by_oauth_id(provider="github", oauth_id=str(github_user.get("id")))
+        
+        if not user:
+            # メールアドレスで検索
+            user = user_service.get_by_email(email=primary_email)
             
-            try:
-                # GitHubユーザーIDをFirebaseのユーザーIDとして使用
-                firebase_uid = f"github_{user_data['id']}"
-                
-                # メールアドレスを取得（GitHubから取得できる場合）
-                email = user_data.get('email')
-                
-                # メールアドレスが非公開の場合、追加のAPIコールで取得を試みる
-                if not email:
-                    emails_response = await client.get(
-                        "https://api.github.com/user/emails",
-                        headers={
-                            "Authorization": f"token {github_token}",
-                            "Accept": "application/json"
-                        }
-                    )
-                    emails_data = emails_response.json()
-                    # プライマリーメールを探す
-                    for email_obj in emails_data:
-                        if email_obj.get('primary'):
-                            email = email_obj.get('email')
-                            break
-                
-                # # Firebase認証にユーザーが存在するか確認
-                try:
-                    get_user(firebase_uid)
-                except Exception:
-                    # ユーザーが存在しない場合は無視
-                    pass
-                
-                # # ユーザーがFirebaseに存在しない場合、カスタムクレームを作成
-                user_claims = {
-                    "github_id": user_data['id'],
-                    "github_username": user_data['login'],
-                    "avatar_url": user_data.get('avatar_url'),
-                    "name": user_data.get('name')
-                }
-                
-                # カスタムトークンを生成
-                custom_token = create_custom_token(firebase_uid, user_claims)
-                
-                # # Firestoreにユーザーデータを保存/更新
-                user_profile = {
-                    "id": str(user_data['id']),
-                    "username": user_data['login'],
-                    "display_name": user_data.get('name') or user_data['login'],
-                    "email": email,
-                    "photo_url": user_data.get('avatar_url'),
-                    "bio": user_data.get('bio'),
-                    "auth_provider": "github",
-                    "last_login": firestore.SERVER_TIMESTAMP,
-                    "updated_at": firestore.SERVER_TIMESTAMP
-                }
-                
-                if not UserService.user_exists(firebase_uid):
-                    # 新規ユーザーの場合、作成日時を追加
-                    user_profile["created_at"] = firestore.SERVER_TIMESTAMP
-                    UserService.create_user(firebase_uid, user_profile)
-                else:
-                    # 既存ユーザーの場合、データを更新
-                    UserService.update_user(firebase_uid, user_profile)
-                
-                # フロントエンドにリダイレクト（カスタムトークンを含む）
-                redirect_url = f"{settings.FRONTEND_REDIRECT_URL}?token={custom_token}"
-                
-                return RedirectResponse(url=redirect_url)
-            except Exception as e:
-                # エラーが発生した場合、必要最低限の情報をフロントエンドに渡す
-                error_redirect = f"{settings.FRONTEND_REDIRECT_URL}?error=firebase_auth_error&message={str(e)}"
-                return RedirectResponse(url=error_redirect)
-    except Exception as e:
-        print(f"Exception in GitHub callback: {str(e)}")
-        error_redirect = f"{settings.FRONTEND_REDIRECT_URL}?error=server_error&message={str(e)}"
-        return RedirectResponse(url=error_redirect, status_code=302)
-
-@router.post("/verify", response_model=Dict[str, Any])
-async def verify_token(token: Token):
-    """Firebase IDトークンを検証"""
-    try:
-        decoded_token = verify_id_token(token.id_token)
-        return {"valid": True, "uid": decoded_token["uid"], "payload": decoded_token}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}"
-        )
-
-
-@router.post("/register", response_model=UserResponse)
-async def register(user_data: UserCreate):
-    """新規ユーザーを登録"""
-    try:
-        # Firebase Authでユーザー作成
-        firebase_user = create_user_with_email_password(
-            user_data.email, 
-            user_data.password, 
-            user_data.display_name
+            if user:
+                # 既存ユーザーにGitHub情報を追加
+                if not user.oauth_provider:
+                    user_update = {
+                        "oauth_provider": "github",
+                        "oauth_id": str(github_user.get("id")),
+                        "github_username": github_user.get("login"),
+                        "github_avatar_url": github_user.get("avatar_url"),
+                    }
+                    user = user_service.update(db_obj=user, obj_in=user_update)
+            else:
+                # 新規ユーザーの作成
+                user_oauth_data = schemas.UserOAuthCreate(
+                    email=primary_email,
+                    name=github_user.get("name") or github_user.get("login"),
+                    oauth_provider="github",
+                    oauth_id=str(github_user.get("id")),
+                    github_username=github_user.get("login"),
+                    github_avatar_url=github_user.get("avatar_url"),
+                )
+                user = user_service.create_oauth_user(obj_in=user_oauth_data)
+        
+        # ログイン時間を更新
+        user_service.update_login_time(user=user)
+        
+        # JWTトークンの生成
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = security.create_access_token(
+            user.id, expires_delta=access_token_expires
         )
         
-        # Firestoreにユーザープロフィール作成
-        user_profile = {
-            "username": "",
-            "email": user_data.email,
-            "display_name": user_data.display_name or user_data.email.split("@")[0],
-            "photo_url": "",                                           # 空文字列で初期化
-            "bio": "",                                                 # 空文字列で初期化
-            "auth_provider": "email",
-            "last_login": firestore.SERVER_TIMESTAMP,
-            "created_at": firestore.SERVER_TIMESTAMP,
-            "updated_at": firestore.SERVER_TIMESTAMP
+        # フロントエンドのURLにトークン情報をクエリパラメータとして追加してリダイレクト
+        frontend_url = settings.FRONTEND_REDIRECT_URL
+        redirect_params = {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": str(settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60),
         }
-        
-        UserService.create_user(firebase_user["uid"], user_profile)
-        
-        return {
-            "id": firebase_user["uid"],
-            "email": firebase_user["email"],
-            "display_name": firebase_user["display_name"],
-            "photo_url": firebase_user["photo_url"]
-        }
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"ユーザー登録エラー: {str(e)}"
-        )
-
-@router.put("/update-profile", response_model=UserResponse)
-async def update_profile(
-    display_name: str = None, 
-    photo_url: str = None,
-    current_user = Depends(get_current_user)
-):
-    """ユーザープロフィールを更新"""
-    properties = {}
-    if display_name:
-        properties["display_name"] = display_name
-    if photo_url:
-        properties["photo_url"] = photo_url
-    
-    if not properties:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="更新するプロパティが指定されていません"
-        )
-    
-    try:
-        # Firebase Authユーザー情報を更新
-        updated_user = update_firebase_user(current_user.uid, properties)
-        
-        # Firestoreのプロフィールも更新
-        user_profile_update = {
-            **properties,
-            "updated_at": firestore.SERVER_TIMESTAMP
-        }
-        UserService.update_user(current_user.uid, user_profile_update)
-        
-        return {
-            "id": updated_user["uid"],
-            "email": updated_user["email"],
-            "display_name": updated_user["display_name"],
-            "photo_url": updated_user["photo_url"]
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"プロフィール更新エラー: {str(e)}"
+        print(f"{frontend_url}/auth/callback?{urlencode(redirect_params)}")
+        return RedirectResponse(
+            url=f"{frontend_url}/auth/callback?{urlencode(redirect_params)}"
         )

@@ -4,7 +4,7 @@
         {
             "label": "mainブランチから新規ブランチ作成",
             "type": "shell",
-            "command": "git checkout main && git pull && git checkout -b ${input:branch} && send_discord discord ${input:branch}",
+            "command": "git checkout main && git pull && git checkout -b ${input:branch}",
             "args": [],
             "problemMatcher": [],
         },
@@ -38,9 +38,23 @@
             "problemMatcher": [],
         },
         {
-            "label": "コードの整形",
+            "label": "コードのフォーマット",
             "type": "shell",
-            "command": "ruff check ./ --fix",
+            "command": "docker compose exec api ruff check ./ --fix",
+            "args": [],
+            "problemMatcher": [],
+        },
+        {
+            "label": "マイグレーションファイルの作成",
+            "type": "shell",
+            "command": "docker compose exec api alembic revision --autogenerate -m \"${input:migration_message}\"",
+            "args": [],
+            "problemMatcher": [],
+        },
+        {
+            "label": "マイグレーションの実行",
+            "type": "shell",
+            "command": "docker compose exec api alembic upgrade head",
             "args": [],
             "problemMatcher": [],
         }
@@ -60,14 +74,8 @@
         },
         {
             "type": "promptString",
-            "id": "emulator_id",
-            "description": "エミュレータ名を入力してください。",
-            "default": ""
-        },
-        {
-            "type": "promptString",
-            "id": "device_id",
-            "description": "デバイス名を入力してください。",
+            "id": "migration_message",
+            "description": "マイグレーションのメッセージを入力してください。",
             "default": ""
         }
     ]
