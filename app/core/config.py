@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     FRONTEND_REDIRECT_URL: Optional[str] = os.getenv("FRONTEND_REDIRECT_URL")
 
     # データベース設定
-    POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "db")
+    POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "db")  # Docker環境ではサービス名を使用
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "furniaizer")
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # Redis設定
     REDIS_URL: Optional[str] = None  # RedisのURLが設定されている場合
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")  # Docker環境ではサービス名を使用
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
     REDIS_IMAGE_CACHE_TTL: int = 3600  # 1時間
     REDIS_MAX_IMAGE_SIZE: int = 1024 * 1024 * 5  # 最大5MB
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # MongoDB設定
     MONGODB_URL: Optional[str] = None
-    MONGODB_HOST: Optional[str] = os.getenv("MONGODB_HOST", "mongo")
+    MONGODB_HOST: Optional[str] = os.getenv("MONGODB_HOST", "mongo")  # Docker環境ではサービス名を使用
     MONGODB_USERNAME: Optional[str] = os.getenv("MONGODB_USERNAME", "mongdb")
     MONGODB_PASSWORD: Optional[str] = os.getenv("MONGODB_PASSWORD", "mongdb")
     MONGODB_DB_NAME: Optional[str] = os.getenv("MONGODB_DB_NAME", "furniaizer")
@@ -80,7 +80,14 @@ class Settings(BaseSettings):
             # または: self.SQLALCHEMY_DATABASE_URI = "sqlite:///./test.db"
 
         self.REDIS_URL = f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
-        self.MONGODB_URL = f"mongodb://{self.MONGODB_USERNAME}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:27017"
+
+        # MongoDB接続設定
+        if self.MONGODB_HOST == "localhost":
+            # ローカル環境では認証なしでMongoDBに接続
+            self.MONGODB_URL = f"mongodb://{self.MONGODB_HOST}:27017"
+        else:
+            # Docker環境などでは認証情報を使用
+            self.MONGODB_URL = f"mongodb://{self.MONGODB_USERNAME}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:27017"
 
     class Config:
         case_sensitive = True
