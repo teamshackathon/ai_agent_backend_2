@@ -6,15 +6,15 @@ from pydantic_settings import BaseSettings
 
 load_dotenv()
 
-class Settings(BaseSettings):
 
+class Settings(BaseSettings):
     # アプリケーションの設定
     PROJECT_NAME: str = "HT SB API"
     API_V1_STR: str = "/api/v1"
     VERSION: str = os.getenv("VERSION", "development")
     OPENAPI_URL: str | None = os.getenv("OPENAPI_URL", "")
-    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS")
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT")
+    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "*")
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # JWT認証
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-for-development")
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
 
     def __init__(self, **data: Any):
         super().__init__(**data)
-        
+
         # 環境に基づいてDBのURIを設定
         if self.ENVIRONMENT == "production":
             self.SQLALCHEMY_DATABASE_URI = (
@@ -81,8 +81,9 @@ class Settings(BaseSettings):
 
         self.REDIS_URL = f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
         self.MONGODB_URL = f"mongodb://{self.MONGODB_USERNAME}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:27017"
-            
+
     class Config:
         case_sensitive = True
+
 
 settings = Settings()
