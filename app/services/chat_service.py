@@ -52,6 +52,9 @@ class ChatService:
             # Invoke the chain directly with ChatInput
             result = self.chain.invoke(chat_input)
 
+            # Add chat_id to the result
+            result.chat_id = chat_input.chat_id
+
             # Save assistant's response to history if repository is available
             if self.chat_history_repository:
                 assistant_message = ChatMessage(role=result.role, content=result.response)
@@ -62,4 +65,6 @@ class ChatService:
         except Exception as e:
             logger.error(f"Error in chat service: {str(e)}")
             # Return error response
-            return ChatOutput(role="assistant", response=f"Sorry, I encountered an error: {str(e)}")
+            return ChatOutput(
+                role="assistant", response=f"Sorry, I encountered an error: {str(e)}", chat_id=chat_input.chat_id
+            )

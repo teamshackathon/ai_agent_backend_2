@@ -27,3 +27,4 @@ class ChatOutput(BaseOutput):
 
     role: str = Field(..., description="Role of the response")
     response: str = Field(..., description="Response content")
+    chat_id: str = Field(..., description="Unique identifier for the chat session")
