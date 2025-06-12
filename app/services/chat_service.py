@@ -1,8 +1,8 @@
 import logging
+import uuid
 from typing import Optional
 
-from app.core.llm.chain.chatchain import ChatChain
-from app.core.llm.client.gemini_client import GeminiClient
+from app.core.llm.chain import BaseChain
 from app.repositories.chat_history_repository import ChatHistoryRepository
 from app.schemas.chat import ChatInput, ChatMessage, ChatOutput
 
@@ -10,17 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 class ChatService:
-    """Chat service using Gemini LLM with persistent history"""
+    """Service for handling chat interactions"""
 
-    def __init__(self, gemini_client: GeminiClient, chat_history_repository: Optional[ChatHistoryRepository] = None):
-        self.gemini_client = gemini_client
+    def __init__(self, chain: BaseChain, chat_history_repository: Optional[ChatHistoryRepository] = None):
+        """Initialize the chat service
+
+        Args:
+            chain: LLM chain for processing chat messages
+            chat_history_repository: Optional repository for storing chat history
+        """
+        self.chain = chain
         self.chat_history_repository = chat_history_repository
-        self._setup_chain()
-
-    def _setup_chain(self):
-        """Setup the chat chain"""
-        chat_llm = self.gemini_client.get_chat_model()
-        self.chain = ChatChain(chat_llm)
 
     async def chat(self, chat_input: ChatInput, user_id: Optional[str] = None) -> ChatOutput:
         """Process chat request with persistent history
@@ -33,6 +33,11 @@ class ChatService:
             Chat response
         """
         try:
+            # Generate UUID for chat_id if not provided
+            if chat_input.chat_id is None:
+                chat_input.chat_id = str(uuid.uuid4())
+                logger.info(f"Generated new chat_id: {chat_input.chat_id}")
+
             # Set default model name if not provided
             if not chat_input.model_name:
                 chat_input.model_name = "gemini-pro"
