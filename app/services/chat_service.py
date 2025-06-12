@@ -2,7 +2,7 @@ import logging
 import uuid
 from typing import Optional
 
-from app.core.llm.chain import BaseChain
+from app.core.llm.chain.base import BaseChain
 from app.repositories.chat_history_repository import ChatHistoryRepository
 from app.schemas.chat import ChatInput, ChatMessage, ChatOutput
 
