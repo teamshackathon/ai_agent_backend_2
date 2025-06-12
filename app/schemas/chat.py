@@ -19,7 +19,7 @@ class ChatInput(BaseInput):
     response: str = Field(..., description="Current message content")
     history: List[ChatMessage] = Field(default=[], description="Chat history")
     model_name: Optional[str] = Field(default=None, description="Model deployment name")
-    chat_id: str = Field(..., description="Unique identifier for the chat session")
+    chat_id: Optional[str] = Field(default=None, description="Unique identifier for the chat session")
 
 
 class ChatOutput(BaseOutput):
@@ -27,3 +27,4 @@ class ChatOutput(BaseOutput):
 
     role: str = Field(..., description="Role of the response")
     response: str = Field(..., description="Response content")
+    chat_id: str = Field(..., description="Unique identifier for the chat session")

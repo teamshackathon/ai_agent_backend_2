@@ -61,4 +61,10 @@ Please provide a helpful and relevant response.""",
             "model_name": inputs.model_name or "gemini-pro",
         }
 
-        return self.chain.invoke(formatted_input, **kwargs)
+        # Get result from the chain
+        result = self.chain.invoke(formatted_input, **kwargs)
+
+        # Add chat_id to result
+        result.chat_id = inputs.chat_id
+
+        return result
