@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.api.deps import get_current_user, get_mongo_db
+from app.core.llm.chain.chatchain import ChatChain
 from app.core.llm.client.gemini_client import GeminiClient
 from app.repositories.chat_history_repository import ChatHistoryRepository
 from app.schemas.chat import ChatInput, ChatOutput
@@ -41,8 +42,12 @@ def get_chat_service(
         # Create history repository with MongoDB connection
         chat_history_repository = ChatHistoryRepository(mongodb)
 
-        # Create chat service with repository
-        return ChatService(gemini_client, chat_history_repository)
+        # Create the chat chain
+        chat_llm = gemini_client.get_chat_model()
+        chain = ChatChain(chat_llm)
+
+        # Create chat service with chain and repository
+        return ChatService(chain, chat_history_repository)
     except Exception as e:
         logger.error(f"Failed to create chat service: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to initialize chat service.")
