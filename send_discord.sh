@@ -36,14 +36,21 @@ if [ ! -f ".env" ]; then
 fi
 
 # Load environment variables from .env file
-while IFS='=' read -r key value; do
-    # Skip empty lines and comments
-    if [[ -n "$key" && ! "$key" =~ ^[[:space:]]*# ]]; then
-        # Remove any trailing whitespace/newlines and quotes from value
-        value=$(echo "$value" | tr -d '\r\n' | sed 's/^"//; s/"$//')
-        export "$key"="$value"
-    fi
-done < .env
+# First, create a temporary cleaned .env file
+temp_env=$(mktemp)
+grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' > "$temp_env"
+
+# Source the cleaned environment file
+set -a
+source "$temp_env" 2>/dev/null || {
+    echo "[Error] Failed to load environment variables from .env"
+    rm -f "$temp_env"
+    exit 1
+}
+set +a
+
+# Clean up temporary file
+rm -f "$temp_env"
 
 if [ "$service" = "discord" ]; then
     # Set JSON file name
