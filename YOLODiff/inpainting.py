@@ -1,6 +1,6 @@
-from PIL import Image
-from diffusers import StableDiffusionInpaintPipeline
 import torch
+from diffusers import StableDiffusionInpaintPipeline
+from PIL import Image
 
 pipe = StableDiffusionInpaintPipeline.from_pretrained(
   "stabilityai/stable-diffusion-2-inpainting",

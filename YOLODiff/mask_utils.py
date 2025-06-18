@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+
 def clean_mask(mask_path):
   mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 

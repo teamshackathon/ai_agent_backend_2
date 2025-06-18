@@ -1,11 +1,13 @@
-import cv2
-import os
 import math
-import numpy as np
-from typing import List
+import os
 from datetime import datetime
 from tkinter import Tk, filedialog
+from typing import List
+
+import cv2
+import numpy as np
 from ultralytics import YOLO
+
 
 def select_image():
   Tk().withdraw()  # Tkウィンドウ非表示
@@ -35,7 +37,7 @@ def extract_furniture(img,mask,bb,width,height,base_dir,count_map,class_name):
   x1, y1, x2, y2 = map(int, [max(0,math.floor(bb[0])), max(0,math.floor(bb[1])), min(width,math.ceil(bb[2])), min(height,math.ceil(bb[3]))])
   crop = img[y1:y2, x1:x2]
   if crop.size == 0:
-    print(f"スキップ: 空のcrop領域（{class_name}_{index}）")
+    print(f"スキップ: 空のcrop領域（{class_name}）")
     return None
   _, crop_mask = cv2.threshold(resized_mask[y1:y2, x1:x2], 127, 255, cv2.THRESH_BINARY) # 安全用
 

@@ -1,9 +1,10 @@
 import os
-import cv2
 from string import digits
+
+import cv2
 import extract_furniture as ef
-from mask_utils import clean_mask
 from inpainting import run_inpainting
+from mask_utils import clean_mask
 
 FURNITURES = [
     'chair', 'couch', 'bed', 'dining_table',
